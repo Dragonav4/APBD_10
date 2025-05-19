@@ -1,6 +1,5 @@
 using System.Net;
 using APBD_s31722_11.DataLayer.Models;
-using APBD_s31722_11.Dto;
 using APBD_s31722_11.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using APBD_s31722_11.DataLayer;
@@ -42,6 +41,13 @@ public class PrescriptionService : IPrescriptionService
 
         if (patient == null)
         {
+            if (dto.Patient.IdPatient != null)
+            {
+                if (!dto.Patient.DateOfBirth.HasValue)
+                {
+                    throw new HttpRequestException("No date of birth", null, HttpStatusCode.BadRequest);
+                }
+            }
             patient = new Patient
             {
                 FirstName = dto.Patient.FirstName,

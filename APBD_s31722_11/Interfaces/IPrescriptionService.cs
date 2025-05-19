@@ -1,4 +1,4 @@
-using APBD_s31722_11.Dto;
+using APBD_s31722_11.DataLayer.Models;
 
 namespace APBD_s31722_11.Interfaces
 {

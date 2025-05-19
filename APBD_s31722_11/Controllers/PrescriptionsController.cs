@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using APBD_s31722_11.Dto;
+using APBD_s31722_11.DataLayer.Models;
 using APBD_s31722_11.Interfaces;
 using APBD_s31722_11.Services;
 using Microsoft.AspNetCore.Mvc;
