@@ -1,0 +1,9 @@
+using APBD_s31722_11.Dto;
+
+namespace APBD_s31722_11.Interfaces
+{
+    public interface IPrescriptionService
+    {
+        Task<int> AddPrescriptionAsync(PrescriptionRequestDto dto);
+    }
+}
