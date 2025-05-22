@@ -96,4 +96,44 @@ public class PrescriptionService : IPrescriptionService
         await _context.SaveChangesAsync();
         return prescription.IdPrescription;
     }
+
+    public async Task<PatientWithPrescriptionsDto> GetPatientWithPrescriptionsAsync(int id)
+    {
+        var patient = await _context.Patients.SingleOrDefaultAsync(p => p.Id == id);
+        if (patient == null) throw new HttpRequestException($"Patient with id {id} not found", null, HttpStatusCode.NotFound);
+        var prescription = await _context.Prescriptions.Where(p => p.PatientId == id)
+            .OrderBy(pr => pr.DueDate)
+            .Include(pr => pr.Doctor)
+            .Include(pr => pr.PrescriptionMedicaments)
+            .ThenInclude(pm => pm.Medicament)
+            .ToListAsync();
+        
+        var resultDto = new PatientWithPrescriptionsDto
+        {
+            IdPatient = patient.Id,
+            FirstName = patient.FirstName,
+            LastName = patient.LastName,
+            DateOfBirth = patient.DateOfBirth,
+            Prescriptions = prescription.Select(pr => new PrescriptionDto
+            {
+                IdPrescription = pr.IdPrescription,
+                Date = pr.Date,
+                DueDate = pr.DueDate,
+                Doctor = new DoctorDto
+                {
+                    IdDoctor  = pr.DoctorId,
+                    FirstName = pr.Doctor.FirstName,
+                    LastName  = pr.Doctor.LastName
+                },
+                Medicaments = pr.PrescriptionMedicaments.Select(pm => new MedicamentDto
+                {
+                    IdMedicament = pm.IdMedicament,
+                    Name = pm.Medicament.Name,
+                    Dose = pm.Dose,
+                    Description = pm.Details
+                }).ToList()
+            }).ToList()
+        };
+        return resultDto;
+    }
 }

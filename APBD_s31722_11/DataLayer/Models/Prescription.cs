@@ -16,6 +16,7 @@ public class Prescription
     public int DoctorId { get; set; }
     public ICollection<PrescriptionMedicament> PrescriptionMedicaments { get; set; }
 
+    public Doctor Doctor { get; set; }
     public Prescription()
     {
     }

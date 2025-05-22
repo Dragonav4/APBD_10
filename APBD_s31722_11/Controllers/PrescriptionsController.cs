@@ -1,8 +1,5 @@
-using System;
-using System.Threading.Tasks;
 using APBD_s31722_11.DataLayer.Models;
 using APBD_s31722_11.Interfaces;
-using APBD_s31722_11.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace APBD_s31722_11.Controllers
@@ -27,12 +24,26 @@ namespace APBD_s31722_11.Controllers
                 return CreatedAtAction(
                     actionName: nameof(Add),
                     routeValues: new { id = newId },
-                    value: new { IdPrescription = newId }
+                    value: new PrescriptionCreatedDto() { IdPrescription = newId } // added after new ' PrescriptionDto' for test
                 );
             }
             catch (ArgumentException ex)
             {
                 return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("patient/{Id}")]
+        public async Task<IActionResult> GetPatientWithPrescriptionById([FromRoute] int Id)
+        {
+            try
+            {
+                var patientData = await _prescriptionService.GetPatientWithPrescriptionsAsync(Id);
+                return Ok(patientData);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
             }
         }
     }
