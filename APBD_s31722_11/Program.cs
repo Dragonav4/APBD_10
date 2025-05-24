@@ -15,6 +15,7 @@ builder.Services.AddDbContext<DatabaseContext>(options =>
     ));
 builder.Services.AddControllers();
 builder.Services.AddScoped<IPrescriptionService, PrescriptionService>();
+builder.Services.AddScoped<IPatientService,PatientService>();
 var app = builder.Build();
 
 app.UseMiddleware<ApiExceptionMiddleware>();

@@ -18,21 +18,58 @@ public class PrescriptionService : IPrescriptionService
 
     public async Task<int> AddPrescriptionAsync(PrescriptionRequestDto dto)
     {
-        if (dto.Medicaments == null || dto.Medicaments.Count == 0)
-        {
-            throw new HttpRequestException("No medicaments", null, HttpStatusCode.BadRequest);
-        }
+        // validating
+        await ValidateMedicamentsAsync(dto);
+        ValidateDueDate(dto);
+        var doctor = await TryGetDoctor(dto);
+        var patient = await GetOrAddPatient(dto);
 
-        if (dto.Medicaments.Count > 10)
-        {
-            throw new HttpRequestException("Too many Medicaments, max - 10", null, HttpStatusCode.BadRequest);
-        }
+        // mapping
+        var prescription = MapPrescription(dto, patient, doctor);
+        
+        //saving
+        await SaveToDb(prescription);
+        return prescription.IdPrescription;
+    }
 
-        if (dto.DueDate < dto.Date)
-        {
-            throw new HttpRequestException("Due date cannot be earlier than date", null, HttpStatusCode.BadRequest);
-        }
+    private async Task SaveToDb(Prescription prescription)
+    {
+        _context.Prescriptions.Add(prescription);
+        await _context.SaveChangesAsync();
+    }
 
+    private static PrescriptionMedicament MapPrescriptionMedicament(PrescriptionRequestDto.MedicamentDto mDto)
+    {
+        return new PrescriptionMedicament
+        {
+            IdMedicament = mDto.IdMedicament,
+            Dose = mDto.Dose,
+            Details = mDto.Description
+        };
+    }
+
+    private static Prescription MapPrescription(PrescriptionRequestDto dto, Patient patient, Doctor doctor)
+    {
+        return new Prescription
+        {
+            PatientId = patient.Id,
+            DoctorId = doctor.Id,
+            Date = dto.Date,
+            DueDate = dto.DueDate,
+            PrescriptionMedicaments = dto.Medicaments.Select(MapPrescriptionMedicament).ToList()
+        };
+    }
+
+    private async Task<Doctor> TryGetDoctor(PrescriptionRequestDto dto)
+    {
+        return await _context.Doctors.FindAsync(dto.Doctor.IdDoctor)
+               ?? throw new HttpRequestException($"Doctor with id {dto.Doctor.IdDoctor} not found", 
+                   null,
+                   HttpStatusCode.NotFound);
+    }
+
+    private async Task<Patient> GetOrAddPatient(PrescriptionRequestDto dto)
+    {
         Patient? patient = null;
         if (dto.Patient.IdPatient != null && dto.Patient.IdPatient > 0)
         {
@@ -57,14 +94,29 @@ public class PrescriptionService : IPrescriptionService
             _context.Patients.Add(patient);
             await _context.SaveChangesAsync();
         }
+        return patient;
+    }
 
-        var doctor = await _context.Doctors.FindAsync(dto.Doctor.IdDoctor);
-        if (doctor == null)
+    private static void ValidateDueDate(PrescriptionRequestDto dto)
+    {
+        if (dto.DueDate < dto.Date)
         {
-            throw new HttpRequestException($"Doctor with id {dto.Doctor.IdDoctor} not found", null,
-                HttpStatusCode.NotFound);
+            throw new HttpRequestException("Due date cannot be earlier than date", null, HttpStatusCode.BadRequest);
+        }
+    }
+
+    private async Task ValidateMedicamentsAsync(PrescriptionRequestDto dto)
+    {
+        if (dto.Medicaments == null || dto.Medicaments.Count == 0)
+        {
+            throw new HttpRequestException("No medicaments", null, HttpStatusCode.BadRequest);
         }
 
+        if (dto.Medicaments.Count > 10)
+        {
+            throw new HttpRequestException("Too many Medicaments, max - 10", null, HttpStatusCode.BadRequest);
+        }
+        
         foreach (var mDto in dto.Medicaments)
         {
             var med = await _context.Medicaments.FindAsync(mDto.IdMedicament);
@@ -74,66 +126,5 @@ public class PrescriptionService : IPrescriptionService
             }
         }
 
-        var prescription = new Prescription
-        {
-            PatientId = patient.Id,
-            DoctorId = doctor.Id,
-            Date = dto.Date,
-            DueDate = dto.DueDate,
-            PrescriptionMedicaments = new List<PrescriptionMedicament>()
-        };
-        foreach (var mDto in dto.Medicaments)
-        {
-            prescription.PrescriptionMedicaments.Add(new PrescriptionMedicament
-                {
-                    IdMedicament = mDto.IdMedicament,
-                    Dose = mDto.Dose,
-                    Details = mDto.Description
-                }
-            );
-        }
-        _context.Prescriptions.Add(prescription);
-        await _context.SaveChangesAsync();
-        return prescription.IdPrescription;
-    }
-
-    public async Task<PatientWithPrescriptionsDto> GetPatientWithPrescriptionsAsync(int id)
-    {
-        var patient = await _context.Patients.SingleOrDefaultAsync(p => p.Id == id);
-        if (patient == null) throw new HttpRequestException($"Patient with id {id} not found", null, HttpStatusCode.NotFound);
-        var prescription = await _context.Prescriptions.Where(p => p.PatientId == id)
-            .OrderBy(pr => pr.DueDate)
-            .Include(pr => pr.Doctor)
-            .Include(pr => pr.PrescriptionMedicaments)
-            .ThenInclude(pm => pm.Medicament)
-            .ToListAsync();
-        
-        var resultDto = new PatientWithPrescriptionsDto
-        {
-            IdPatient = patient.Id,
-            FirstName = patient.FirstName,
-            LastName = patient.LastName,
-            DateOfBirth = patient.DateOfBirth,
-            Prescriptions = prescription.Select(pr => new PrescriptionDto
-            {
-                IdPrescription = pr.IdPrescription,
-                Date = pr.Date,
-                DueDate = pr.DueDate,
-                Doctor = new DoctorDto
-                {
-                    IdDoctor  = pr.DoctorId,
-                    FirstName = pr.Doctor.FirstName,
-                    LastName  = pr.Doctor.LastName
-                },
-                Medicaments = pr.PrescriptionMedicaments.Select(pm => new MedicamentDto
-                {
-                    IdMedicament = pm.IdMedicament,
-                    Name = pm.Medicament.Name,
-                    Dose = pm.Dose,
-                    Description = pm.Details
-                }).ToList()
-            }).ToList()
-        };
-        return resultDto;
     }
 }

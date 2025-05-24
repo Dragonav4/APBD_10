@@ -32,19 +32,5 @@ namespace APBD_s31722_11.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
-
-        [HttpGet("patient/{Id}")]
-        public async Task<IActionResult> GetPatientWithPrescriptionById([FromRoute] int Id)
-        {
-            try
-            {
-                var patientData = await _prescriptionService.GetPatientWithPrescriptionsAsync(Id);
-                return Ok(patientData);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = ex.Message });
-            }
-        }
     }
 }

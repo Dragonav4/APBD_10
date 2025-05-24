@@ -9,10 +9,20 @@ using Assert = Xunit.Assert;
 namespace Tests;
 
 public class PatientControllerTests
+
 {
-    private static PatientController CreatePatientController(out Mock<IPrescriptionService> mockService)
+    private readonly Mock<IPatientService> _patientServiceMock;
+    private readonly PatientController _controller;
+
+    public PatientControllerTests(Mock<IPatientService> patientServiceMock, PatientController controller)
     {
-        mockService = new Mock<IPrescriptionService>();
+        _patientServiceMock = patientServiceMock;
+        _controller = controller;
+    }
+
+    private static PatientController CreatePatientController(out Mock<IPatientService> mockService)
+    {
+        mockService = new Mock<IPatientService>();
         return new PatientController(mockService.Object);
     }
 
@@ -39,4 +49,18 @@ public class PatientControllerTests
         Assert.Equal(400,badRequestResult.StatusCode);
     }
     
+    [Fact]
+    public async Task GetPatientWithPrescriptionById_ServiceReturnsDto_ReturnsOk()
+    {
+        var dto = new PatientWithPrescriptionsDto { IdPatient = 1 };
+        _patientServiceMock
+            .Setup(s => s.GetPatientWithPrescriptionsAsync(1))
+            .ReturnsAsync(dto);
+
+        var result = await _controller.GetPatientWithPrescriptionById(1);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(200, ok.StatusCode);
+        Assert.Same(dto, ok.Value);
+    }
 }
